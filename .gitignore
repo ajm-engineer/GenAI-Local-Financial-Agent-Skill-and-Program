@@ -1,0 +1,8 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+data/
+preview/preview-*.html
+scripts/static/logo.*
