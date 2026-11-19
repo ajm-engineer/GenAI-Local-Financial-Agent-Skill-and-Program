@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AeroStock</title>
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #E9EEF2; --sheet: #F6F9FB; --ink: #10283F; --ink2: #4C6177;
+  --line: #B8C6D2; --accent: #1B5FA6; --amber: #A66B10; --ok: #1C7548; --bad: #B03A2E;
+  --c1: #1B5FA6; --c2: #A66B10; --c3: #1C7548; --c4: #8E3B8A; --c5: #B03A2E;
+  --din: "DIN Alternate", "Bahnschrift", "DIN Next", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0E2740; --sheet: #12314F; --ink: #E4EEF8; --ink2: #9CB3C8;
+    --line: #2C4F72; --accent: #86BDF2; --amber: #F2B84B; --ok: #6FD3A0; --bad: #FF8C7C;
+    --c1: #86BDF2; --c2: #F2B84B; --c3: #6FD3A0; --c4: #D9A0E0; --c5: #FF8C7C;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.55 var(--body);
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+}
+.wrap { max-width: 780px; margin: 0 auto; padding: 18px 16px 72px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tb { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
+      border-bottom: 2px solid var(--ink); padding-bottom: 6px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand img { height: 38px; width: auto; display: block; }
+.live { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+        margin-right: 6px; vertical-align: 1px; }
+.live.off { background: var(--bad); }
+.tb-name { font: 600 22px/1.2 var(--din); letter-spacing: .01em; }
+.tb-owner { font: 13px/1.2 var(--din); color: var(--ink2); }
+.tb-time { font: 14px var(--din); color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#needs { margin: 14px 0 6px; }
+.need { border-left: 3px solid var(--amber); padding: 2px 0 2px 12px; margin: 0 0 10px; }
+.need.urgent { border-left-color: var(--bad); }
+.need.fine { border-left-color: var(--ok); }
+.need p { margin: 0; }
+.need .fix { color: var(--ink2); font-size: 14px; }
+
+.tabs { display: flex; gap: 2px; overflow-x: auto; margin: 18px -16px 18px; padding: 0 16px;
+        border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { font: 600 15px var(--din); letter-spacing: .02em; color: var(--ink2); background: none;
+       border: 0; border-bottom: 3px solid transparent; padding: 10px 12px; min-height: 44px;
+       cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+h2 { font: 600 17px/1.3 var(--din); letter-spacing: .01em; margin: 26px 0 8px; }
+p { margin: 0 0 10px; }
+.muted { color: var(--ink2); }
+.small { font-size: 14px; }
+.num { font-family: var(--din); font-variant-numeric: tabular-nums; }
+
+.tip { border-bottom: 1px dotted var(--ink2); cursor: help; }
+#tip { position: fixed; z-index: 10; display: none; pointer-events: none;
+       max-width: min(320px, calc(100vw - 16px)); background: var(--ink); color: var(--bg);
+       font: 14px/1.4 var(--body); padding: 8px 11px; border-radius: 2px; }
+
+.call { border-top: 1px solid var(--line); padding: 16px 0 14px; }
+.call:first-child { border-top: 0; padding-top: 4px; }
+.call-meta { font: 14px var(--din); color: var(--ink2); margin-bottom: 4px; }
+.call-meta .late { color: var(--bad); font-weight: 600; }
+.call-text { font-size: 17px; line-height: 1.4; margin: 0 0 4px; }
+.call-why { font-size: 14px; color: var(--ink2); margin: 0 0 10px; }
+
+.ruler { position: relative; height: 34px; margin: 12px 6px 2px; }
+.ruler .rule { position: absolute; left: 0; right: 0; top: 13px; height: 0; border-top: 1px solid var(--ink2); }
+.ruler .tick { position: absolute; top: 9px; width: 1px; height: 9px; background: var(--ink2); }
+.ruler .tick.major { top: 6px; height: 15px; }
+.ruler .lab { position: absolute; top: 22px; transform: translateX(-50%); font: 11px var(--din);
+              color: var(--ink2); font-variant-numeric: tabular-nums; }
+.ruler .m { position: absolute; top: 0; width: 10px; height: 16px; margin-left: -5px; }
+.ruler .m::after { content: ""; position: absolute; left: 4px; top: 3px; width: 2px; height: 10px; background: var(--ink2); opacity: .55; }
+.ruler .stated { position: absolute; top: 6px; width: 14px; height: 14px; margin-left: -7px;
+                 border: 2px solid var(--ink); background: var(--sheet); transform: rotate(45deg); }
+.ruler .panel { position: absolute; top: 0; width: 4px; height: 27px; margin-left: -2px; background: var(--accent); }
+.rkey { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 14px var(--din); margin: 0 6px 8px; }
+.rkey .k { cursor: help; }
+.rkey .k::before { content: ""; display: inline-block; vertical-align: -1px; margin-right: 6px; }
+.rkey .k.stated::before { width: 9px; height: 9px; border: 2px solid var(--ink); transform: rotate(45deg); }
+.rkey .k.panel::before { width: 4px; height: 13px; background: var(--accent); vertical-align: -2px; }
+.rkey .k.others::before { width: 2px; height: 10px; background: var(--ink2); opacity: .55; }
+details.who { margin: 0 6px 10px; font-size: 14px; }
+details.who summary { cursor: pointer; color: var(--accent); min-height: 32px; padding-top: 5px; }
+details.who table { border-collapse: collapse; margin-top: 4px; }
+details.who td { padding: 2px 16px 2px 0; }
+details.who td.num { text-align: right; }
+
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+button.b { font: 600 15px var(--din); letter-spacing: .02em; color: var(--ink); background: var(--sheet);
+           border: 1px solid var(--ink2); border-radius: 2px; padding: 9px 16px; min-height: 44px; cursor: pointer; }
+button.b:hover { border-color: var(--ink); }
+button.b.yes { border-color: var(--ok); color: var(--ok); }
+button.b.no { border-color: var(--bad); color: var(--bad); }
+button.b.go { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+button.b[disabled] { opacity: .5; cursor: default; }
+input.f { width: 100%; font: 16px var(--body); color: var(--ink); background: var(--sheet);
+          border: 1px solid var(--ink2); border-radius: 2px; padding: 10px 12px; margin-bottom: 8px; }
+.confirm { border: 1px solid var(--line); background: var(--sheet); padding: 12px; margin-top: 10px; }
+.confirm p { margin-bottom: 8px; }
+
+figure { margin: 8px 0 18px; }
+figcaption { font-size: 14px; color: var(--ink2); margin-top: 2px; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { font: 12px var(--din); fill: var(--ink2); font-variant-numeric: tabular-nums; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .ax { stroke: var(--ink2); stroke-width: 1; fill: none; }
+.chart .ref { stroke: var(--ink2); stroke-width: 1; stroke-dasharray: 5 4; fill: none; }
+.chart .l { fill: none; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .s-stated { stroke: var(--ink); } .chart text.s-stated { fill: var(--ink); stroke: none; }
+.chart .s-panel { stroke: var(--accent); } .chart text.s-panel { fill: var(--accent); stroke: none; }
+.chart .s-coin { stroke: var(--ink2); stroke-dasharray: 5 4; } .chart text.s-coin { fill: var(--ink2); stroke: none; }
+.chart .c1 { stroke: var(--c1); } .chart text.c1 { fill: var(--c1); stroke: none; }
+.chart .c2 { stroke: var(--c2); stroke-dasharray: 7 3; } .chart text.c2 { fill: var(--c2); stroke: none; }
+.chart .c3 { stroke: var(--c3); stroke-dasharray: 2 3; } .chart text.c3 { fill: var(--c3); stroke: none; }
+.chart .c4 { stroke: var(--c4); stroke-dasharray: 9 3 2 3; } .chart text.c4 { fill: var(--c4); stroke: none; }
+.chart .c5 { stroke: var(--c5); stroke-dasharray: 1 4; } .chart text.c5 { fill: var(--c5); stroke: none; }
+.chart .hit { fill: transparent; stroke: none; cursor: help; }
+.chart .d-stated { fill: var(--sheet); stroke: var(--ink); stroke-width: 2; }
+.chart .d-panel { fill: var(--accent); stroke: none; }
+.chart .d-late { stroke: var(--bad); }
+.chart .join { stroke: var(--ink2); stroke-width: 1; }
+
+.brow { display: grid; grid-template-columns: minmax(84px, 26%) 1fr auto; gap: 10px; align-items: center;
+        padding: 6px 0; border-bottom: 1px solid var(--line); cursor: help; }
+.brow.sub .bl { padding-left: 14px; color: var(--ink2); }
+.bl { font: 15px var(--din); }
+.brow:not(.sub) .bl { font-weight: 600; }
+.bbar { position: relative; height: 12px; border-left: 1px solid var(--ink2); }
+.bbar i { display: block; height: 100%; }
+.bbar i.g-good { background: var(--ok); } .bbar i.g-warn { background: var(--amber); } .bbar i.g-badc { background: var(--bad); }
+.bbar .coin { position: absolute; left: 62.5%; top: -5px; bottom: -5px; border-left: 1px dashed var(--ink2); }
+.bv { font-size: 14px; white-space: nowrap; }
+
+.stamp { display: inline-block; font: 600 12px var(--din); letter-spacing: .04em; text-transform: uppercase;
+         padding: 2px 8px; border: 1px solid currentColor; border-radius: 2px; margin-right: 8px; vertical-align: 1px; }
+.stamp.go { color: var(--ok); } .stamp.hold { color: var(--amber); } .stamp.dead { color: var(--bad); }
+.stamp.flow { color: var(--accent); }
+.funnel .frow { display: grid; grid-template-columns: minmax(150px, 38%) 1fr auto; gap: 10px; align-items: center;
+                padding: 7px 0; border-bottom: 1px solid var(--line); }
+.funnel .fl { font: 15px var(--din); }
+.funnel .fb { height: 12px; background: var(--line); }
+.funnel .fb i { display: block; height: 100%; background: var(--accent); min-width: 2px; }
+.funnel .fb i.peak { background: var(--amber); }
+.funnel .fv { font: 15px var(--din); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.proj { border-top: 1px solid var(--line); padding: 14px 0; }
+.proj:first-child { border-top: 0; }
+.proj .pn { font: 600 17px var(--din); margin-bottom: 3px; }
+.proj .pm { color: var(--ink2); font-size: 14px; }
+.proj .pm b { color: var(--ink); font-weight: 600; }
+.proj .pnote { margin: 6px 0 0; font-size: 15px; }
+.cal .crow { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.cal .crow:first-child { border-top: 0; }
+.cal .cd { font: 600 15px var(--din); }
+.cal .cd small { display: block; font-weight: 400; color: var(--ink2); }
+.cal .cw { font-weight: 600; }
+.cal .cy { color: var(--ink2); font-size: 14px; margin-top: 2px; }
+.cal .past .cd, .cal .past .cw { color: var(--ink2); font-weight: 400; }
+.lead { font-size: 17px; line-height: 1.5; margin: 0 0 6px; }
+.lead b { font-weight: 600; }
+textarea.f { width: 100%; min-height: 110px; font: 14px/1.4 ui-monospace, Menlo, Consolas, monospace; color: var(--ink);
+             background: var(--sheet); border: 1px solid var(--ink2); border-radius: 2px; padding: 10px 12px; margin-bottom: 8px; resize: vertical; }
+.steps { counter-reset: s; padding-left: 0; list-style: none; margin: 0 0 10px; }
+.steps li { counter-increment: s; position: relative; padding-left: 30px; margin-bottom: 8px; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%;
+                    background: var(--accent); color: var(--bg); font: 600 12px/20px var(--din); text-align: center; }
+.sub { border-top: 1px solid var(--line); margin-top: 26px; padding-top: 6px; }
+
+.scroll { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 15px; }
+table.t th { text-align: left; font: 600 13px var(--din); color: var(--ink2); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--ink2); }
+table.t td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.t td.num, table.t th.num { text-align: right; }
+.wbar { height: 8px; background: var(--line); min-width: 60px; }
+.wbar i { display: block; height: 100%; background: var(--accent); }
+.meter { height: 6px; background: var(--line); margin-top: 4px; }
+.meter i { display: block; height: 100%; background: var(--accent); }
+.meter.warn i { background: var(--amber); } .meter.bad i { background: var(--bad); }
+.good { color: var(--ok); } .warn { color: var(--amber); } .badc { color: var(--bad); }
+.verdict { border-left: 3px solid var(--line); padding-left: 12px; margin: 8px 0 14px; }
+.verdict.good { border-left-color: var(--ok); color: inherit; }
+.verdict.warn { border-left-color: var(--amber); color: inherit; }
+.verdict.badc { border-left-color: var(--bad); color: inherit; }
+dl.kv { display: grid; grid-template-columns: minmax(110px, 34%) 1fr; gap: 0; margin: 0; }
+dl.kv dt, dl.kv dd { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line); }
+dl.kv dt { color: var(--ink2); font: 15px var(--din); }
+pre { background: var(--sheet); border: 1px solid var(--line); padding: 14px; overflow-x: auto;
+      font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; white-space: pre-wrap;
+      word-break: break-word; margin: 0 0 12px; }
+#toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+         background: var(--ink); color: var(--bg); font: 600 15px var(--din); padding: 10px 18px;
+         border-radius: 2px; display: none; max-width: 90vw; z-index: 5; }
+#toast.err { background: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="tb">
+    <div class="brand">
+      <img id="logo" src="logo" alt="" hidden
+           onload="this.hidden=false" onerror="this.remove()">
+      <div>
+        <div class="tb-name">AeroStock</div>
+      </div>
+    </div>
+    <div class="tb-time" data-tip="Live: the page checks the box every two seconds and refreshes itself when anything changes."><span class="live off" id="livedot"></span><span id="clock">connecting</span></div>
+  </header>
+
+  <section id="needs" aria-live="polite"></section>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" data-view="grade" aria-selected="true" data-tip="Calls that have reached their date. Mark each as true, false or void.">Grade</button>
+    <button class="tab" role="tab" data-view="desk" aria-selected="false" data-tip="Ask for a brief on one topic: odds, what is priced, setups and traps.">Desk</button>
+    <button class="tab" role="tab" data-view="calls" aria-selected="false" data-tip="Every call still waiting for its date.">Open calls</button>
+    <button class="tab" role="tab" data-view="score" aria-selected="false" data-tip="Whether the calls have been any good, and which forecaster to trust.">Score</button>
+    <button class="tab" role="tab" data-view="digests" aria-selected="false" data-tip="The morning summaries: what happened and what is scheduled.">Digests</button>
+    <button class="tab" role="tab" data-view="texas" aria-selected="false" data-tip="Texas data center pipeline and the regulatory calendar.">Texas</button>
+    <button class="tab" role="tab" data-view="box" aria-selected="false" data-tip="The machine itself: power, heat, memory, network, services.">Box</button>
+  </nav>
+
+  <main id="view"></main>
+</div>
+<div id="toast" role="status"></div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+const q = p => TOKEN ? p + (p.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN) : p;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pc = x => Math.round(x * 100) + '%';
+const $ = id => document.getElementById(id);
+
+async function api(path, method) {
+  const r = await fetch(q(path), method ? { method } : undefined);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || ('request failed, ' + r.status));
+  return body;
+}
+
+function toast(msg, bad) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = bad ? 'err' : '';
+  t.style.display = 'block';
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.display = 'none'; }, 2800);
+}
+
+const TIPS = {
+  brier: 'Brier score: the average squared gap between the odds given and what actually happened. 0 is perfect, 0.25 is what a coin flip scores. Lower is better.',
+  stated: 'The odds given by whoever made the call: the event desk, or the research loop.',
+  panel: 'The panel’s blend: every forecaster’s number averaged together, weighted by how right each has been so far.',
+  others: 'The other forecasters on the panel. Each small mark is one of them.',
+  weight: 'How much of the blend this forecaster supplies. It grows when the forecaster is right and shrinks when it is wrong.',
+  vscoin: 'This forecaster compared with always saying 50%, on the same calls. “No clear difference” means the gap is small enough to be luck.',
+  calls: 'How many graded calls this is based on. Under 30, treat the number as a hint.',
+  cametrue: 'The share of these calls that actually happened.',
+  yes: 'It happened as written, by its date.',
+  no: 'The date passed and it did not happen as written.',
+  void: 'For an IF-THEN call whose IF never happened. A voided call is left out of every score. Never use it for a call that simply missed.',
+  resolves: 'The date this call is checked against what happened.',
+  basis: { unread_source: 'Rested on a primary source few people read: a docket, a filing, a permit.',
+           engineering: 'Rested on technical judgment about whether something can physically work.',
+           headline: 'Rested on news reporting that everyone else can also read.',
+           scheduled: 'Rested on a published date or deadline.',
+           market: 'Rested on a market price, such as a prediction market.',
+           other: 'Rested on something else, or was logged before this was tracked.' },
+  track: { texas: 'Texas track: data center approvals, power and rules in Texas.',
+           silicon: 'Silicon track: competition in AI chips.',
+           desk: 'Desk track: calls made by the event desk, including how a stock reacts to an event.',
+           other: 'Calls that fit no track.' },
+  cat: { approval: 'Whether a specific project clears a specific regulatory step.',
+         bottleneck: 'Which suppliers gain from the shortage of power and permits.',
+         policy: 'Who gains from a specific rule change.',
+         moat: 'Whether Nvidia’s software lock-in is weakening.',
+         adoption: 'Who is actually deploying non-Nvidia chips at scale.',
+         pricing: 'Nvidia’s pricing power: margins, revenue per gigawatt, resale values.',
+         event: 'Whether a named event happens by a date. The most forecastable kind.',
+         reaction: 'How a stock reacts IF something happens. The hardest kind to get right.',
+         setup: 'How a trade idea turned out over a stated period.',
+         other: 'Unclassified.' },
+  svc: { ollama: 'Runs the local AI model.', 'research-loop': 'Polls the sources and logs new claims around the clock.',
+         'market-digest-web': 'Serves this page.', tailscaled: 'The private network that lets you reach the box away from home.',
+         ssh: 'Remote terminal access.' },
+  box: { power: 'Whether the laptop is on mains. On battery it has a limited time left, and you get a Telegram alert.',
+         temp: 'Heat. Above about 85°C the processor slows itself down, which looks like the model getting slower.',
+         gpu: 'The graphics card runs the AI model. If a run is active and no model is loaded here, it has fallen back to the much slower processor.',
+         mem: 'Working memory in use.', disk: 'Storage in use. AI models are large; old ones are the usual thing to delete.',
+         up: 'Time since the last restart. Load is roughly how many processor cores are busy.',
+         net: 'How the box is connected. “In use” marks the connection actually carrying traffic.',
+         svc: 'The background programs that make up the system.' }
+};
+const WHO = {
+  coin: 'coin flip, always 50%', base_rate: 'this category’s hit rate so far',
+  primary: 'stated odds', primary_shrunk: 'stated, pulled toward 50%',
+  primary_sharp: 'stated, pushed away from 50%', outside: 'outside view',
+  inside: 'inside view', skeptic: 'skeptic', analyst_raw: 'local model’s own number',
+  market: 'prediction market', chat: 'Claude in chat'
+};
+const WHO_SHORT = { coin: 'coin flip', base_rate: 'category rate', primary: 'stated', primary_shrunk: 'stated, toward 50%',
+  primary_sharp: 'stated, sharper', outside: 'outside view', inside: 'inside view', skeptic: 'skeptic',
+  analyst_raw: 'local model raw', market: 'market', chat: 'Claude in chat' };
+const WHO_TIP = {
+  coin: 'Always says 50%. The baseline: a forecaster that cannot beat this adds nothing.',
+  base_rate: 'Says whatever share of this category’s past calls came true. Tests whether knowing only the category is enough.',
+  primary: 'The odds exactly as stated when the call was made.',
+  primary_shrunk: 'The stated odds pulled halfway toward 50%. Gains weight if the stated odds are overconfident.',
+  primary_sharp: 'The stated odds pushed away from 50%. Gains weight if the stated odds are too timid.',
+  outside: 'An AI forecaster told to start from how often this kind of thing usually happens.',
+  inside: 'An AI forecaster told to reason from the specific facts of the situation.',
+  skeptic: 'An AI forecaster told to argue against the obvious story first.',
+  analyst_raw: 'The local model’s own confidence, logged to test whether it can be trusted.',
+  market: 'A prediction market’s price, logged by hand.',
+  chat: 'A number given by Claude in conversation.'
+};
+const T = (label, tip) => `<span class="tip" tabindex="0" data-tip="${esc(tip)}">${esc(label)}</span>`;
+
+const tipEl = $('tip');
+let tipFor = null, lastTouch = 0;
+function showTip(el) {
+  const text = el.getAttribute('data-tip');
+  if (!text) return;
+  tipFor = el;
+  tipEl.textContent = text;
+  tipEl.style.display = 'block';
+  const r = el.getBoundingClientRect();
+  const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  let x = r.left + r.width / 2 - tw / 2;
+  x = Math.max(8, Math.min(x, vw - tw - 8));
+  let y = r.top - th - 8;
+  if (y < 8) y = r.bottom + 8;
+  tipEl.style.left = x + 'px';
+  tipEl.style.top = y + 'px';
+  if (el.setAttribute) el.setAttribute('aria-describedby', 'tip');
+}
+function hideTip() {
+  if (tipFor && tipFor.removeAttribute) tipFor.removeAttribute('aria-describedby');
+  tipFor = null;
+  tipEl.style.display = 'none';
+}
+const tipTarget = e => (e.target && e.target.closest) ? e.target.closest('[data-tip]') : null;
+const fresh = () => Date.now() - lastTouch < 800;
+document.addEventListener('touchstart', () => { lastTouch = Date.now(); }, { passive: true });
+document.addEventListener('mouseover', e => { if (fresh()) return; const el = tipTarget(e); if (el) showTip(el); });
+document.addEventListener('mouseout', e => {
+  if (fresh() || !tipFor) return;
+  if (!e.relatedTarget || !tipFor.contains(e.relatedTarget)) hideTip();
+});
+document.addEventListener('focusin', e => { const el = tipTarget(e); if (el) showTip(el); });
+document.addEventListener('focusout', hideTip);
+document.addEventListener('click', e => {
+  if (!fresh()) return;
+  const el = tipTarget(e);
+  const busy = e.target.closest && e.target.closest('button, a, input, summary');
+  if (el && !busy) { if (tipFor === el) hideTip(); else showTip(el); }
+  else hideTip();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
+window.addEventListener('scroll', hideTip, { passive: true });
+
+async function loadStatus() {
+  try {
+    const s = await api('/api/status');
+    $('clock').textContent = s.now.replace('T', ' ').slice(0, 16);
+    $('livedot').className = 'live';
+    let h = '';
+    (s.attention || []).filter(a => a.key !== 'due').forEach(a => {
+      h += `<div class="need ${a.severity === 'urgent' ? 'urgent' : ''}">
+        <p>${a.severity === 'urgent' ? '<strong>Now:</strong> ' : ''}${esc(a.text)}</p>
+        ${a.fix ? `<p class="fix">${esc(a.fix)}</p>` : ''}</div>`;
+    });
+    if (s.due) {
+      h += `<div class="need"><p><strong>${s.due} ${s.due === 1 ? 'call is' : 'calls are'}</strong>
+        waiting to be graded.</p></div>`;
+    }
+    if (!h) h = `<div class="need fine"><p>Nothing needs you right now.</p>
+      <p class="fix">${s.open} open ${s.open === 1 ? 'call' : 'calls'}, ${s.resolved} graded so far.</p></div>`;
+    $('needs').innerHTML = h;
+  } catch (e) {
+    $('clock').textContent = 'offline';
+    $('livedot').className = 'live off';
+    $('needs').innerHTML = `<div class="need urgent"><p>Cannot reach the box: ${esc(e.message)}.</p>
+      <p class="fix">If you are away from home, check that Tailscale is connected on this device.</p></div>`;
+  }
+}
+
+function ruler(c) {
+  const fs = c.forecasts || {};
+  const others = Object.entries(fs).filter(([m]) => m !== 'primary');
+  const vals = others.map(([, p]) => p);
+  let h = '<div class="ruler" role="img" aria-label="Stated ' + pc(c.confidence) +
+    (c.blend != null ? ', panel ' + pc(c.blend) : '') + '">';
+  h += '<div class="rule"></div>';
+  for (let v = 0; v <= 100; v += 5) {
+    const major = v % 25 === 0;
+    h += `<i class="tick${major ? ' major' : ''}" style="left:${v}%"></i>`;
+    if (major) h += `<span class="lab" style="left:${v}%">${v}</span>`;
+  }
+  others.forEach(([m, p]) => { h += `<i class="m" style="left:${(p * 100).toFixed(1)}%" data-tip="${esc((WHO[m] || m) + ': ' + pc(p))}"></i>`; });
+  if (c.blend != null) h += `<b class="panel" style="left:${(c.blend * 100).toFixed(1)}%" data-tip="${esc('Panel blend ' + pc(c.blend) + '. ' + TIPS.panel)}"></b>`;
+  h += `<b class="stated" style="left:${(c.confidence * 100).toFixed(1)}%" data-tip="${esc('Stated ' + pc(c.confidence) + '. ' + TIPS.stated)}"></b></div>`;
+
+  h += `<div class="rkey"><span class="k stated" tabindex="0" data-tip="${esc(TIPS.stated)}">stated ${pc(c.confidence)}</span>`;
+  if (c.blend != null) h += `<span class="k panel" tabindex="0" data-tip="${esc(TIPS.panel)}">panel ${pc(c.blend)}</span>`;
+  if (vals.length) h += `<span class="k others" tabindex="0" data-tip="${esc(TIPS.others)}">others ${pc(Math.min(...vals))} to ${pc(Math.max(...vals))}</span>`;
+  h += '</div>';
+
+  const all = Object.entries(fs).sort((a, b) => b[1] - a[1]);
+  if (all.length) {
+    h += `<details class="who"><summary>All ${all.length} forecasts</summary><table>` +
+      all.map(([m, p]) => `<tr><td>${T(WHO[m] || m, WHO_TIP[m] || 'A forecaster added by hand.')}</td><td class="num">${pc(p)}</td></tr>`).join('') +
+      '</table></details>';
+  }
+  return h;
+}
+
+function callHtml(c, gradable) {
+  const over = c.days_away != null && c.days_away < 0;
+  const when = c.days_away == null ? '' : over ? `${-c.days_away} days overdue`
+    : c.days_away === 0 ? 'due today' : `due in ${c.days_away} days`;
+  const conditional = /^\s*if\b/i.test(c.claim);
+  return `<article class="call" id="c-${esc(c.id)}">
+    <div class="call-meta">${T(c.track, TIPS.track[c.track] || '')}, ${T(c.category, TIPS.cat[c.category] || '')}.
+      ${c.basis ? `Rests on ${T((c.basis || 'other').replace('_', ' '), TIPS.basis[c.basis] || TIPS.basis.other)}. ` : ''}${T('Resolves', TIPS.resolves)} ${esc(c.resolve_by)}${when ? `, <span class="${over ? 'late' : ''}">${when}</span>` : ''}</div>
+    <p class="call-text">${esc(c.claim)}</p>
+    ${c.mechanism ? `<p class="call-why">${esc(c.mechanism)}</p>` : ''}
+    ${ruler(c)}
+    ${gradable ? `<div class="btns" id="b-${esc(c.id)}">
+      <button class="b yes" data-tip="${esc(TIPS.yes)}" onclick="ask('${esc(c.id)}','true')">Came true</button>
+      <button class="b no" data-tip="${esc(TIPS.no)}" onclick="ask('${esc(c.id)}','false')">Did not happen</button>
+      ${conditional ? `<button class="b" data-tip="${esc(TIPS.void)}" onclick="ask('${esc(c.id)}','void')">Void</button>` : ''}
+    </div><div id="k-${esc(c.id)}"></div>` : ''}
+  </article>`;
+}
+
+const VERB = { 'true': 'Came true', 'false': 'Did not happen', 'void': 'Void' };
+function ask(id, outcome) {
+  hideTip();
+  const hint = outcome === 'void'
+    ? 'Void is only for an IF that never happened, never for a call that missed. What happened instead?'
+    : 'What settled it? A link or a few words.';
+  $('k-' + id).innerHTML = `<div class="confirm"><p class="small">${hint}</p>
+    <input class="f" id="n-${id}" placeholder="Evidence" aria-label="Evidence">
+    <div class="btns"><button class="b go" onclick="grade('${id}','${outcome}')">Save: ${VERB[outcome]}</button>
+    <button class="b" onclick="$('k-${id}').innerHTML=''">Cancel</button></div></div>`;
+  $('n-' + id).focus();
+}
+
+async function grade(id, outcome) {
+  const note = encodeURIComponent(($('n-' + id) || {}).value || '');
+  try {
+    if (outcome === 'void') await api(`/api/claims/${id}/void?note=${note}`, 'POST');
+    else await api(`/api/claims/${id}/resolve?outcome=${outcome}&note=${note}`, 'POST');
+    const el = $('c-' + id); if (el) el.remove();
+    toast('Saved: ' + VERB[outcome]);
+    loadStatus();
+    if (!document.querySelector('#view .call')) viewGrade();
+  } catch (e) { toast(e.message, true); }
+}
+
+const svgOpen = (w, h, label) => `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}">`;
+const n1 = v => Number(v).toFixed(1);
+
+function spread(items, gap, lo, hi) {
+  const a = items.slice().sort((p, q) => p.y - q.y);
+  for (let i = 1; i < a.length; i++) if (a[i].y - a[i - 1].y < gap) a[i].y = a[i - 1].y + gap;
+  const over = a.length ? a[a.length - 1].y - hi : 0;
+  if (over > 0) a.forEach(p => { p.y -= over; });
+  for (let i = a.length - 2; i >= 0; i--) if (a[i + 1].y - a[i].y < gap) a[i].y = a[i + 1].y - gap;
+  a.forEach(p => { if (p.y < lo) p.y = lo; });
+  return a;
+}
+
+function chartTimeline(tl) {
+  const pts = (tl || []).filter(p => p.k >= 5 && p.stated != null);
+  if (pts.length < 2) return '';
+  const W = 640, H = 250, L = 44, R = 124, Tp = 14, B = 38;
+  const k0 = pts[0].k, k1 = pts[pts.length - 1].k;
+  const vals = pts.flatMap(p => [p.stated, p.panel].filter(v => v != null));
+  const yMax = Math.min(0.5, Math.max(0.32, Math.max(...vals) + 0.03));
+  const X = k => L + (k1 === k0 ? 0 : (k - k0) / (k1 - k0)) * (W - L - R);
+  const Y = v => Tp + (1 - Math.min(Math.max(v, 0), yMax) / yMax) * (H - Tp - B);
+  const last = pts[pts.length - 1];
+  let s = svgOpen(W, H, `Score as calls were graded. Stated odds now at ${last.stated.toFixed(3)}` +
+    (last.panel != null ? `, panel at ${last.panel.toFixed(3)}` : '') + ', coin flip is 0.250. Lower is better.');
+  for (let v = 0; v <= yMax + 1e-9; v += 0.1)
+    s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${n1(Y(v))}" y2="${n1(Y(v))}"/><text x="${L - 8}" y="${n1(Y(v) + 4)}" text-anchor="end">${v.toFixed(1)}</text>`;
+  s += `<line class="ref" x1="${L}" x2="${W - R}" y1="${n1(Y(0.25))}" y2="${n1(Y(0.25))}"/>`;
+  [k0, Math.round((k0 + k1) / 2), k1].filter((v, i, a) => a.indexOf(v) === i).forEach(k => {
+    s += `<text x="${n1(X(k))}" y="${H - B + 16}" text-anchor="middle">${k}</text>`;
+  });
+  s += `<text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle">calls graded</text>`;
+  const path = key => pts.filter(p => p[key] != null).map((p, i) => (i ? 'L' : 'M') + n1(X(p.k)) + ' ' + n1(Y(p[key]))).join(' ');
+  if (last.panel != null) s += `<path class="l s-panel" d="${path('panel')}"/>`;
+  s += `<path class="l s-stated" d="${path('stated')}"/>`;
+  const labels = [{ y: Y(last.stated), t: 'stated ' + last.stated.toFixed(3), c: 's-stated' },
+                  { y: Y(0.25), t: 'coin flip 0.250', c: 's-coin' }];
+  if (last.panel != null) labels.push({ y: Y(last.panel), t: 'panel ' + last.panel.toFixed(3), c: 's-panel' });
+  spread(labels, 15, Tp + 4, H - B).forEach(l => { s += `<text class="${l.c}" x="${W - R + 8}" y="${n1(l.y + 4)}">${l.t}</text>`; });
+  const colw = Math.max(6, (W - L - R) / pts.length);
+  pts.forEach(p => {
+    const tip = `After ${p.k} graded calls: stated ${p.stated.toFixed(3)}` + (p.panel != null ? `, panel ${p.panel.toFixed(3)}` : '') + '. Coin flip is 0.250, lower is better.';
+    s += `<rect class="hit" x="${n1(X(p.k) - colw / 2)}" y="${Tp}" width="${n1(colw)}" height="${H - Tp - B}" data-tip="${esc(tip)}"/>`;
+  });
+  return s + '</svg>';
+}
+
+function chartCalibration(cal) {
+  const st = (cal && cal.stated) || [], pn = (cal && cal.panel) || [];
+  if (!st.length) return '';
+  const W = 640, H = 290, L = 52, Tp = 12, S = 232;
+  const X = v => L + v * S, Y = v => Tp + (1 - v) * S;
+  let s = svgOpen(W, H, 'Calibration: for calls given a certain chance, how many came true. On the diagonal the odds meant what they said.');
+  [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+    s += `<line class="grid" x1="${L}" x2="${L + S}" y1="${n1(Y(v))}" y2="${n1(Y(v))}"/><line class="grid" y1="${Tp}" y2="${Tp + S}" x1="${n1(X(v))}" x2="${n1(X(v))}"/>`;
+    s += `<text x="${L - 8}" y="${n1(Y(v) + 4)}" text-anchor="end">${v * 100}%</text><text x="${n1(X(v))}" y="${Tp + S + 16}" text-anchor="middle">${v * 100}%</text>`;
+  });
+  s += `<line class="ref" x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}"/>`;
+  s += `<text x="${L + S / 2}" y="${H - 6}" text-anchor="middle">chance given</text>`;
+  s += `<text transform="translate(12 ${Tp + S / 2}) rotate(-90)" text-anchor="middle">came true</text>`;
+  const rad = n => Math.min(13, 4 + 2 * Math.sqrt(n));
+  pn.forEach(p => {
+    s += `<circle class="d-panel" cx="${n1(X(p.x))}" cy="${n1(Y(p.y))}" r="${n1(rad(p.n) * 0.8)}" data-tip="${esc(`Panel: of ${p.n} calls given about ${pc(p.x)}, ${pc(p.y)} came true.`)}"/>`;
+  });
+  st.forEach(p => {
+    const r = rad(p.n), cx = X(p.x), cy = Y(p.y);
+    s += `<rect class="d-stated" x="${n1(cx - r * 0.75)}" y="${n1(cy - r * 0.75)}" width="${n1(r * 1.5)}" height="${n1(r * 1.5)}" transform="rotate(45 ${n1(cx)} ${n1(cy)})" data-tip="${esc(`Stated: of ${p.n} calls given about ${pc(p.x)}, ${pc(p.y)} came true.`)}"/>`;
+  });
+  const tx = L + S + 30;
+  s += `<rect class="d-stated" x="${tx}" y="${Tp + 6}" width="10" height="10" transform="rotate(45 ${tx + 5} ${Tp + 11})"/><text class="s-stated" x="${tx + 20}" y="${Tp + 15}">stated odds</text>`;
+  s += `<circle class="d-panel" cx="${tx + 5}" cy="${Tp + 35}" r="5"/><text class="s-panel" x="${tx + 20}" y="${Tp + 39}">panel blend</text>`;
+  ['On the dashed line, the odds', 'meant what they said.', '', 'Below the line: overconfident.', 'Above it: too cautious.', '', 'Bigger marks rest on more calls.']
+    .forEach((t, i) => { s += `<text x="${tx}" y="${Tp + 72 + i * 17}">${t}</text>`; });
+  return s + '</svg>';
+}
+
+function chartWeights(hist) {
+  const pts = (hist && hist.points) || [], ms = (hist && hist.members) || [];
+  if (pts.length < 2 || !ms.length) return '';
+  const W = 640, H = 250, L = 44, R = 150, Tp = 14, B = 38;
+  const k0 = pts[0].k, k1 = pts[pts.length - 1].k;
+  const top = Math.max(...pts.flatMap(p => ms.map(m => p.w[m] || 0)));
+  const yMax = Math.max(0.3, Math.ceil(top * 10) / 10);
+  const X = k => L + (k1 === k0 ? 0 : (k - k0) / (k1 - k0)) * (W - L - R);
+  const Y = v => Tp + (1 - v / yMax) * (H - Tp - B);
+  const last = pts[pts.length - 1];
+  let s = svgOpen(W, H, 'Share of the blend held by each forecaster as calls were graded. ' +
+    ms.map(m => `${WHO_SHORT[m] || m} ${pc(last.w[m] || 0)}`).join(', ') + '.');
+  for (let v = 0; v <= yMax + 1e-9; v += 0.1)
+    s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${n1(Y(v))}" y2="${n1(Y(v))}"/><text x="${L - 8}" y="${n1(Y(v) + 4)}" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  [k0, Math.round((k0 + k1) / 2), k1].filter((v, i, a) => a.indexOf(v) === i).forEach(k => {
+    s += `<text x="${n1(X(k))}" y="${H - B + 16}" text-anchor="middle">${k}</text>`;
+  });
+  s += `<text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle">calls graded</text>`;
+  let ci = 0;
+  const cls = {};
+  ms.forEach(m => { cls[m] = m === 'coin' ? 's-coin' : 'c' + (++ci); });
+  ms.forEach(m => {
+    s += `<path class="l ${cls[m]}" d="${pts.map((p, i) => (i ? 'L' : 'M') + n1(X(p.k)) + ' ' + n1(Y(p.w[m] || 0))).join(' ')}"/>`;
+  });
+  spread(ms.map(m => ({ y: Y(last.w[m] || 0), t: `${WHO_SHORT[m] || m} ${pc(last.w[m] || 0)}`, c: cls[m] })), 15, Tp + 4, H - B)
+    .forEach(l => { s += `<text class="${l.c}" x="${W - R + 8}" y="${n1(l.y + 4)}">${esc(l.t)}</text>`; });
+  const colw = Math.max(6, (W - L - R) / pts.length);
+  pts.forEach(p => {
+    const tip = `After ${p.k} graded calls: ` + ms.slice().sort((a, b) => (p.w[b] || 0) - (p.w[a] || 0))
+      .map(m => `${WHO_SHORT[m] || m} ${pc(p.w[m] || 0)}`).join(', ') + '.';
+    s += `<rect class="hit" x="${n1(X(p.k) - colw / 2)}" y="${Tp}" width="${n1(colw)}" height="${H - Tp - B}" data-tip="${esc(tip)}"/>`;
+  });
+  return s + '</svg>';
+}
+
+function chartAhead(list) {
+  const calls = (list || []).filter(c => c.days_away != null);
+  if (calls.length < 2) return '';
+  const W = 640, H = 230, L = 46, R = 18, Tp = 14, B = 40;
+  const dMax = Math.max(14, ...calls.map(c => Math.max(0, c.days_away)));
+  const X = d => L + (Math.max(0, d) / dMax) * (W - L - R);
+  const Y = v => Tp + (1 - v) * (H - Tp - B);
+  let s = svgOpen(W, H, `${calls.length} open calls by how soon they resolve and how likely they were judged.`);
+  [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+    s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${n1(Y(v))}" y2="${n1(Y(v))}"/><text x="${L - 8}" y="${n1(Y(v) + 4)}" text-anchor="end">${v * 100}%</text>`;
+  });
+  const step = dMax <= 21 ? 7 : dMax <= 70 ? 14 : dMax <= 200 ? 30 : 90;
+  for (let d = 0; d <= dMax; d += step)
+    s += `<text x="${n1(X(d))}" y="${H - B + 16}" text-anchor="middle">${d === 0 ? 'today' : d}</text>`;
+  s += `<text x="${(L + W - R) / 2}" y="${H - 4}" text-anchor="middle">days until it resolves</text>`;
+  const seen = {};
+  calls.slice().sort((a, b) => a.days_away - b.days_away).forEach(c => {
+    const key = Math.round(X(c.days_away) / 10);
+    const j = seen[key] = (seen[key] || 0) + 1;
+    const x = Math.min(W - R - 14, X(c.days_away) + (j - 1) * 24);
+    const late = c.days_away < 0;
+    const tip = `${c.claim.length > 110 ? c.claim.slice(0, 107) + '...' : c.claim} Stated ${pc(c.confidence)}` +
+      (c.blend != null ? `, panel ${pc(c.blend)}` : '') + `. ${late ? 'Overdue for grading' : 'Resolves ' + c.resolve_by}.`;
+    s += `<g data-tip="${esc(tip)}">`;
+    if (c.blend != null) {
+      s += `<line class="join" x1="${n1(x)}" x2="${n1(x + 11)}" y1="${n1(Y(c.confidence))}" y2="${n1(Y(c.blend))}"/>`;
+      s += `<rect class="d-panel" x="${n1(x + 9)}" y="${n1(Y(c.blend) - 8)}" width="4" height="16"/>`;
+    }
+    s += `<rect class="d-stated${late ? ' d-late' : ''}" x="${n1(x - 5)}" y="${n1(Y(c.confidence) - 5)}" width="10" height="10" transform="rotate(45 ${n1(x)} ${n1(Y(c.confidence))})"/>`;
+    s += `<rect class="hit" x="${n1(x - 9)}" y="${Tp}" width="24" height="${H - Tp - B}"/></g>`;
+  });
+  return s + '</svg>';
+}
+
+function grade3(b) { return b >= 0.25 ? 'badc' : b > 0.20 ? 'warn' : 'good'; }
+
+function trackBars(tracks, isBasis) {
+  const MAX = 0.4;
+  const row = (label, t, sub, tip) => `<div class="brow${sub ? ' sub' : ''}" tabindex="0" data-tip="${esc(tip + ` Score ${t.brier.toFixed(3)} over ${t.n} calls, ${pc(t.hit_rate)} came true.`)}">
+    <div class="bl">${esc(label)}</div>
+    <div class="bbar"><i class="g-${grade3(t.brier)}" style="width:${n1(Math.min(t.brier, MAX) / MAX * 100)}%"></i><span class="coin"></span></div>
+    <div class="bv num ${grade3(t.brier)}">${t.brier.toFixed(3)} <span class="muted">${t.n}</span></div></div>`;
+  let h = '';
+  tracks.forEach(t => {
+    h += row(t.track, t, false, isBasis ? (TIPS.basis[t._key] || '') : (TIPS.track[t.track] || ''));
+    t.categories.forEach(c => { h += row(c.category, c, true, TIPS.cat[c.category] || ''); });
+  });
+  return h + `<p class="muted small" style="margin-top:8px">Shorter bars are better. The dashed line is a coin flip, 0.250.
+    The grey number is how many calls each bar rests on. Under 30, treat it as a hint.</p>`;
+}
+
+async function viewGrade() {
+  const list = await api('/api/claims?which=due');
+  if (!list.length) {
+    $('view').innerHTML = `<p>No calls are due.</p>
+      <p class="muted">Calls come due on their resolution dates. When one does, it shows up here with
+      three choices, and grading it takes a few seconds. Grading is the only way the system learns.</p>`;
+    return;
+  }
+  $('view').innerHTML = `<p class="muted">Mark each call by what actually happened, not by whether the
+    reasoning was good.</p>` + list.map(c => callHtml(c, true)).join('');
+}
+
+async function viewCalls() {
+  const list = await api('/api/claims?which=open');
+  if (!list.length) {
+    $('view').innerHTML = `<p>No open calls yet.</p><p class="muted">Run a brief from the Desk tab, or wait for the research loop to log its first claim.</p>`;
+    return;
+  }
+  const ahead = chartAhead(list);
+  $('view').innerHTML =
+    (ahead ? `<figure>${ahead}<figcaption>Each call by when it resolves and how likely it was judged. The diamond is the ${T('stated odds', TIPS.stated)}, the bar is the ${T('panel’s blend', TIPS.panel)}. Point at one to read it.</figcaption></figure>` : '') +
+    `<p class="muted">${list.length} open. On each ruler the diamond is the odds as stated, the bar is the panel’s blend,
+       and the small marks are the other forecasters.</p>` + list.map(c => callHtml(c, false)).join('');
+}
+
+async function viewDesk() {
+  const d = await api('/api/desk');
+  $('view').innerHTML = `
+    <p>Ask for a brief on one topic: scenario odds, what is already priced, setups ranked by soundness, and traps.
+       Every call in it is logged and graded.</p>
+    <input class="f" id="dtopic" maxlength="120" placeholder="Topic, for example: NVDA earnings next week" aria-label="Topic">
+    <input class="f" id="dtick" placeholder="Tickers, optional: NVDA AMD AVGO" aria-label="Tickers">
+    <div class="btns"><button class="b go" id="drun" data-tip="Starts a brief on the box. It takes a minute or two and then appears below." ${d.running ? 'disabled' : ''}>${d.running ? 'A brief is running' : 'Run brief'}</button>
+      <button class="b" onclick="show('desk')">Refresh</button></div>
+    <p class="muted small" style="margin-top:10px">Takes a minute or two. A brief never tells you how much to put in. That part is yours.</p>
+
+    <div class="sub"><h2>Or ask a stronger model by hand</h2>
+    <p class="small">The box gathers the facts and writes the whole request. You paste it into a Claude conversation,
+       paste the reply back here, and it is checked, logged and graded exactly like the box’s own brief.
+       Uses your subscription instead of the box’s model or the API.</p>
+    <ol class="steps small">
+      <li>Enter a topic above, then <b>Prepare the request</b>.</li>
+      <li><b>Copy</b> it and paste it into Claude. It replies with a block of text starting with <code>{</code>.</li>
+      <li>Paste that reply below and <b>Import</b>.</li>
+    </ol>
+    <div class="btns"><button class="b" id="dask" data-tip="Collects the facts and writes a paste-ready request. No model runs on the box.">Prepare the request</button></div>
+    <div id="askbox"></div></div>
+    ${d.briefs.length ? d.briefs.map(b => `<h2>${esc(b.name.replace('.txt', ''))}</h2><pre>${esc(b.text)}</pre>`).join('')
+                      : '<h2>No briefs yet</h2><p class="muted">Your first one will appear here.</p>'}`;
+  $('dask').onclick = async () => {
+    const topic = $('dtopic').value.trim();
+    if (topic.length < 3) { toast('Give it a topic first', true); return; }
+    try {
+      const a = await api(`/api/desk/ask?topic=${encodeURIComponent(topic)}&tickers=${encodeURIComponent($('dtick').value.trim())}`, 'POST');
+      $('askbox').innerHTML = `<p class="small muted" style="margin-top:12px">Request ${esc(a.ask_id)} for “${esc(a.topic)}”${a.errors.length ? `. Some sources failed: ${esc(a.errors.join('; '))}` : ''}.</p>
+        <textarea class="f" id="asktext" readonly>${esc(a.text)}</textarea>
+        <div class="btns"><button class="b go" id="askcopy">Copy request</button></div>
+        <p class="small" style="margin-top:14px">Paste Claude’s reply here:</p>
+        <textarea class="f" id="askanswer" placeholder="{ ... }"></textarea>
+        <div class="btns"><button class="b go" id="askimport">Import the reply</button></div>`;
+      $('askcopy').onclick = async () => {
+        const t = $('asktext');
+        try { await navigator.clipboard.writeText(t.value); toast('Copied'); }
+        catch (e) { t.select(); toast('Select all and copy', true); }
+      };
+      $('askimport').onclick = async () => {
+        const answer = $('askanswer').value.trim();
+        if (answer.length < 20) { toast('Paste the reply first', true); return; }
+        try {
+          const r = await fetch(q('/api/desk/import'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ask_id: a.ask_id, answer }) });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(body.error || body.detail || r.status);
+          toast('Imported and logged');
+          show('desk');
+        } catch (e) { toast('Import failed: ' + e.message, true); }
+      };
+    } catch (e) { toast(e.message, true); }
+  };
+  $('drun').onclick = async () => {
+    const topic = $('dtopic').value.trim();
+    if (topic.length < 3) { toast('Give the brief a topic', true); return; }
+    try {
+      await api(`/api/desk/run?topic=${encodeURIComponent(topic)}&tickers=${encodeURIComponent($('dtick').value.trim())}`, 'POST');
+      toast('Brief started');
+      $('drun').disabled = true; $('drun').textContent = 'A brief is running';
+    } catch (e) { toast(e.message, true); }
+  };
+}
+
+async function viewScore() {
+  const [s, p] = await Promise.all([api('/api/score'), api('/api/panel')]);
+  let h = '';
+  if (!s.enough) {
+    h += `<div class="verdict"><p>${esc(s.message)}</p>
+      <p class="muted small">A ${T('score', TIPS.brier)} from a handful of calls is noise, so there are no charts yet.
+      They appear once ten calls have been graded. Nothing here should change what you do before then.</p></div>`;
+  } else {
+    const v = s.brier >= 0.25 ? ['badc', 'Worse than a coin flip. On this evidence the calls are not worth acting on.']
+      : s.brier > 0.20 ? ['warn', 'Within noise of a coin flip. No evidence of skill yet.']
+      : ['good', 'Better than a coin flip so far. Check each track below before relying on it.'];
+    h += `<div class="verdict ${v[0]}"><p>${v[1]}</p>
+      <p class="muted small">Overall ${T('score', TIPS.brier)} <span class="num">${s.brier.toFixed(3)}</span> over ${s.resolved} graded calls.
+      Stated confidence averaged ${pc(s.mean_confidence)}, and ${pc(s.hit_rate)} came true${Math.abs(s.overconfidence) > 0.1 ? (s.overconfidence > 0 ? ', so the odds have been overconfident' : ', so the odds have been too cautious') : ''}.</p></div>`;
+
+    const tl = chartTimeline(s.timeline);
+    if (tl) h += `<h2>Score as calls were graded</h2><figure>${tl}
+      <figcaption>Running ${T('score', TIPS.brier)} for the ${T('stated odds', TIPS.stated)} and the ${T('panel’s blend', TIPS.panel)}. Lower is better, and a line under the dashed one is beating a coin flip. Early wobble is normal.</figcaption></figure>`;
+
+    const cb = chartCalibration(s.calibration);
+    if (cb) h += `<h2>Did the odds mean what they said?</h2><figure>${cb}
+      <figcaption>If calls given a 70% chance come true about 70% of the time, the mark sits on the line.</figcaption></figure>`;
+
+    h += '<h2>By track</h2>' + trackBars(s.tracks);
+    if (s.by_basis && s.by_basis.length) {
+      h += `<h2>By what the call rested on</h2>
+        <p class="muted small">Which kind of information has been worth trusting. This is where an edge would show up first.</p>` +
+        trackBars(s.by_basis.map(b => ({ ...b, track: b.track.replace('_', ' '), _key: b.track })), true);
+    }
+  }
+
+  h += '<h2>The forecaster panel</h2>';
+  if (!p.members.length) {
+    h += '<p class="muted">No forecasts logged yet. They start with the first call.</p>';
+  } else {
+    const top = p.members[0];
+    const cls = p.n_resolved < 10 ? '' : top.name === 'coin' ? 'badc' : p.trained ? 'good' : 'warn';
+    h += `<div class="verdict ${cls}"><p>${esc(p.verdict.replace(/^Panel: /, ''))}</p></div>`;
+    const wc = p.n_resolved >= 10 ? chartWeights(p.history) : '';
+    if (wc) h += `<figure>${wc}<figcaption>How much of the blend each forecaster supplies, as calls were graded. ${T('Weight', TIPS.weight)} drifts toward whoever has been right. Shown for the leading few and the coin flip.</figcaption></figure>`;
+    h += `<div class="scroll"><table class="t"><tr><th>Forecaster</th><th>${T('Weight', TIPS.weight)}</th><th class="num">${T('Calls', TIPS.calls)}</th><th class="num">${T('Score', TIPS.brier)}</th><th>${T('Against a coin flip', TIPS.vscoin)}</th></tr>`;
+    p.members.forEach(m => {
+      let vs = '';
+      if (m.name !== 'coin' && m.vs_coin != null) {
+        const noise = Math.abs(m.vs_coin) <= 2 * (m.vs_coin_se || 0);
+        vs = noise ? '<span class="muted">no clear difference</span>'
+          : m.vs_coin < 0 ? `<span class="good">better by ${Math.abs(m.vs_coin).toFixed(3)}</span>`
+          : `<span class="badc">worse by ${m.vs_coin.toFixed(3)}</span>`;
+      }
+      h += `<tr><td>${T(WHO[m.name] || m.name, WHO_TIP[m.name] || 'A forecaster added by hand.')}</td>
+        <td><div class="wbar"><i style="width:${Math.round(m.weight * 100)}%"></i></div><span class="num small">${pc(m.weight)}</span></td>
+        <td class="num">${m.n}</td><td class="num">${m.brier == null ? '' : m.brier.toFixed(3)}</td><td>${vs}</td></tr>`;
+    });
+    h += '</table></div>';
+    if (p.shown.n) h += `<p class="small" style="margin-top:10px">The panel’s blend, as it was shown at the time, scores
+      <span class="num">${p.shown.brier.toFixed(3)}</span> over ${p.shown.n} calls.</p>`;
+    h += `<p class="muted small">Nobody is ever dropped from the panel. Weight moves toward whoever has been right, slowly,
+      and with this few calls it barely moves at all. That is deliberate.</p>`;
+  }
+  $('view').innerHTML = h;
+}
+
+async function viewDigests() {
+  const list = await api('/api/digests');
+  $('view').innerHTML = list.length ? list.map(d => `
+    <h2>${esc(d.run_at.replace('T', ' ').slice(0, 16))}${d.guardrail_hits.length ? ' <span class="warn small">used barred language</span>' : ''}${!d.generated ? ' <span class="muted small">raw facts only</span>' : ''}</h2>
+    <pre>${esc(d.digest_text || '(empty)')}</pre>`).join('')
+    : '<p>No digests yet.</p><p class="muted">The first one arrives on the next weekday morning once the timer is enabled.</p>';
+}
+
+const STAGE_CLASS = { energized: 'go', approved: 'go', paused: 'hold', cancelled: 'dead' };
+const STAGE_TIP = {};
+async function viewTexas() {
+  const d = await api('/api/texas');
+  if (!d || !Array.isArray(d.stages) || !d.aggregate) {
+    $('view').innerHTML = `<p class="badc">The box is still running older server code than this page.</p>
+      <p class="muted">On the box: <code>sudo systemctl restart market-digest-web</code>, then reload.</p>`;
+    return;
+  }
+  d.stages.forEach(st => { STAGE_TIP[st.key] = st.desc; });
+  const a = d.aggregate;
+  const gw = v => (v >= 100 ? Math.round(v) : v.toFixed(1)) + ' GW';
+  const bar = (v, cls) => `<div class="fb"><i class="${cls || ''}" style="width:${Math.max(0.5, v / a.requests_gw * 100).toFixed(1)}%"></i></div>`;
+  let h = `<p class="lead">Texas has <b>${gw(a.requests_gw)}</b> of data-center and other large-load requests waiting to connect,
+    about <b>${a.queue_vs_peak}×</b> the most power the whole grid has ever delivered. Only <b>${gw(a.observed_peak_large_load_gw)}</b>
+    is actually drawing power: a ${T('conversion', 'Share of requested capacity that is actually operating. Filing a request is cheap, so the queue measures interest, never capacity.')} of <b>${a.conversion_pct}%</b>.</p>
+    <p class="muted small">Announcements are noise. A project moving between stages is the signal. Figures as of ${esc(a.as_of)}.</p>`;
+
+  h += `<h2>The pipeline</h2><div class="funnel">
+    <div class="frow"><div class="fl">${T('Requests filed', 'Everything in ERCOT’s large-load queue. Developers file at several sites for one project, so this overstates real demand.')}</div>${bar(a.requests_gw)}<div class="fv">${gw(a.requests_gw)}</div></div>
+    <div class="frow"><div class="fl">${T('Of which data centers', 'The share of the queue identified as data centers.')}</div>${bar(a.datacenter_gw)}<div class="fv">${gw(a.datacenter_gw)}</div></div>
+    <div class="frow"><div class="fl">${T('In Batch Zero screening', 'Projects that posted financial security and proved site control, so ERCOT will study them.')}</div>${bar(a.batch_zero_conditional_gw)}<div class="fv">${gw(a.batch_zero_conditional_gw)}</div></div>
+    <div class="frow"><div class="fl">${T('Approved to energize', 'Cleared by ERCOT to connect.')}</div>${bar(a.approval_to_energize_gw)}<div class="fv">${gw(a.approval_to_energize_gw)}</div></div>
+    <div class="frow"><div class="fl">${T('Actually drawing power', 'Observed peak consumption by large loads. The only number that is capacity.')}</div>${bar(a.observed_peak_large_load_gw)}<div class="fv">${gw(a.observed_peak_large_load_gw)}</div></div>
+    <div class="frow"><div class="fl">${T('Grid’s record peak', 'The most power ERCOT has ever delivered to everyone in Texas at once, for scale.')}</div>${bar(a.ercot_record_peak_gw, 'peak')}<div class="fv">${gw(a.ercot_record_peak_gw)}</div></div>
+  </div><p class="muted small" style="margin-top:8px">Source: ${esc(a.source)}</p>`;
+
+  h += '<h2>What is scheduled</h2><div class="cal">';
+  d.calendar.forEach(e => {
+    const past = e.days_away < 0;
+    const when = past ? `${-e.days_away} days ago` : e.days_away === 0 ? 'today' : `in ${e.days_away} days`;
+    h += `<div class="crow${past ? ' past' : ''}"><div class="cd">${esc(e.date)}<small>${when}</small></div>
+      <div><div class="cw">${esc(e.what)}</div><div class="cy">${esc(e.why)} <span class="muted">(${esc(e.source)})</span></div></div></div>`;
+  });
+  h += '</div>';
+
+  h += '<h2>Tracked projects</h2>';
+  d.projects.forEach(p => {
+    const cls = STAGE_CLASS[p.stage] || 'flow';
+    h += `<div class="proj"><div class="pn"><span class="stamp ${cls}" data-tip="${esc(STAGE_TIP[p.stage] || '')}">${esc(p.stage_label)}</span>${esc(p.name)}</div>
+      <div class="pm"><b>${p.capacity_mw.toLocaleString()} MW</b> · ${esc(p.county)} County · ${esc(p.operator)}</div>
+      ${p.notes ? `<p class="pnote">${esc(p.notes)}</p>` : ''}
+      <div class="pm">As of ${esc(p.as_of)}, per ${esc(p.source)}</div></div>`;
+  });
+
+  if (d.transitions.length) {
+    h += '<h2>Stage changes, last 90 days</h2>';
+    d.transitions.forEach(t => {
+      const cls = { advance: 'go', resume: 'go', halt: 'hold', regress: 'hold' }[t.kind] || 'flow';
+      h += `<div class="proj"><div class="pn"><span class="stamp ${cls}">${esc(t.kind)}</span>${esc(t.project)}</div>
+        <div class="pm">${esc(t.from_label)} → <b>${esc(t.to_label)}</b> · recorded ${esc(t.recorded.slice(0, 10))} · ${esc(t.source || '')}</div></div>`;
+    });
+  } else {
+    h += `<h2>Stage changes, last 90 days</h2><p class="muted">None recorded. With energization paused pending the December report, that is the expected state, not a gap.</p>`;
+  }
+
+  h += `<h2>${T('Dispatchable generation', 'Power plants an operator can turn up or down on command: gas, nuclear, batteries. The Texas Energy Fund lends to build them inside ERCOT.')}</h2>
+    <div class="scroll"><table class="t"><tr><th>Project</th><th>Company</th><th class="num">MW</th><th>Award</th><th>Online</th></tr>`;
+  d.generation.forEach(g => {
+    h += `<tr><td>${esc(g.name)}${g.status !== 'awarded' ? ' <span class="muted small">(not TxEF)</span>' : ''}</td><td>${esc(g.company)}</td>
+      <td class="num">${g.capacity_mw.toLocaleString()}</td><td>${esc(g.award)}</td><td>${esc(g.online)}</td></tr>`;
+  });
+  h += `</table></div><p class="muted small" style="margin-top:8px">Watch withdrawals as closely as awards: six of the first seventeen Texas Energy Fund projects pulled out, citing costs and equipment delays, and nobody announces a withdrawal.</p>`;
+  $('view').innerHTML = h;
+}
+
+function meter(v, warnAt, badAt) {
+  const cls = v >= badAt ? 'bad' : v >= warnAt ? 'warn' : '';
+  return `<div class="meter ${cls}"><i style="width:${Math.min(v, 100)}%"></i></div>`;
+}
+
+async function viewBox() {
+  const s = await api('/api/system');
+  const p = s.power || {}, t = s.thermals || {}, n = s.network || {}, g = s.gpu || {}, h = s.host || {};
+  const dt = (label, tip) => `<dt>${T(label, tip)}</dt>`;
+  let o = '<dl class="kv">';
+
+  o += dt('Power', TIPS.box.power) + '<dd>';
+  if (p.has_battery) {
+    const dis = p.status === 'Discharging' || p.on_ac === false;
+    o += dis ? `<strong class="badc">On battery, ${p.percent != null ? p.percent + '%' : 'level unknown'}${p.minutes_left ? ', about ' + p.minutes_left + ' minutes left' : ''}</strong>`
+             : `On mains, battery ${p.percent != null ? p.percent + '%' : 'level unknown'}`;
+    if (p.health_pct != null) o += `<div class="muted small">Battery holds ${p.health_pct}% of its design capacity${p.health_pct < 60 ? ', so it will not last long in a power cut' : ''}.</div>`;
+  } else o += 'Mains only, no battery found';
+  o += '</dd>';
+
+  o += dt('Temperature', TIPS.box.temp) + '<dd>' + (t.cpu_c != null ? `<span class="${t.cpu_c >= 85 ? 'badc' : t.cpu_c >= 75 ? 'warn' : ''}">CPU ${Math.round(t.cpu_c)}°C</span>` : 'CPU not reported') +
+    (g.available && g.temp_c != null ? `, GPU ${Math.round(g.temp_c)}°C` : '') + '</dd>';
+
+  o += dt('Graphics card', TIPS.box.gpu) + '<dd>';
+  if (g.available) {
+    o += `${esc(g.name || 'GPU')}<div class="small">${Math.round(g.memory_used_mb || 0)} of ${Math.round(g.memory_total_mb || 0)} MB in use</div>${meter(g.memory_pct || 0, 90, 97)}
+      <div class="small ${g.model_loaded ? 'good' : 'muted'}" style="margin-top:4px">${g.model_loaded ? 'A model is loaded on the card.' : 'No model loaded right now. Normal between runs; if a run is active, it has fallen back to the CPU.'}</div>`;
+  } else o += '<span class="badc">Not responding.</span> <span class="small muted">Ollama will be running on the CPU, about ten times slower.</span>';
+  o += '</dd>';
+
+  if (h.mem_pct != null) o += dt('Memory', TIPS.box.mem) + `<dd>${h.mem_used_mb} of ${h.mem_total_mb} MB${meter(h.mem_pct, 80, 92)}</dd>`;
+  if (h.disk_pct != null) o += dt('Disk', TIPS.box.disk) + `<dd>${h.disk_used_gb} of ${h.disk_total_gb} GB${meter(h.disk_pct, 85, 95)}</dd>`;
+  o += dt('Running for', TIPS.box.up) + `<dd>${esc(h.uptime || 'unknown')}${h.load ? `<div class="small muted">Load ${h.load[0]} across ${h.cpus} cores</div>` : ''}</dd>`;
+
+  o += dt('Network', TIPS.box.net) + '<dd>';
+  const ifs = n.interfaces || [];
+  o += ifs.length ? ifs.map(i => {
+    const up = i.state === 'UP' && i.ipv4 && i.ipv4.length;
+    return `<div><strong class="${up ? '' : 'muted'}">${esc(i.name)}</strong> <span class="muted">${esc(i.kind)}</span>${i.is_default ? ' <span class="good small">in use</span>' : ''}
+      <div class="small muted">${up ? esc(i.ipv4.join(', ')) : 'not connected'}${i.ssid ? ', ' + esc(i.ssid) : ''}${i.signal_quality ? ', signal ' + esc(i.signal_quality) + ' (' + i.signal_dbm + ' dBm)' : ''}${i.speed_mbps ? ', ' + i.speed_mbps + ' Mbps link' : ''}</div></div>`;
+  }).join('') : 'No interfaces found';
+  if (n.tailscale) o += `<div><strong>${T('Tailscale', TIPS.svc.tailscaled)}</strong> <span class="${n.tailscale.online ? 'good' : 'badc'} small">${n.tailscale.online ? 'connected' : 'offline'}</span>
+    <div class="small muted">${esc((n.tailscale.ips || []).join(', '))}</div></div>`;
+  o += '</dd>';
+
+  o += dt('Services', TIPS.box.svc) + '<dd>' + Object.entries(s.services || {}).map(([k, v]) =>
+    `<div>${T(k, TIPS.svc[k] || 'A background program.')} <span class="small ${v === 'active' ? 'good' : v === 'unknown' ? 'muted' : 'badc'}">${v === 'active' ? 'running' : v === 'unknown' ? 'not installed' : esc(v)}</span></div>`).join('') + '</dd>';
+  o += `</dl><p class="muted small" style="margin-top:10px">Read at ${esc(s.collected_at)}. A summary of this goes to Telegram every week, and at once if the box loses mains power.</p>`;
+  $('view').innerHTML = o;
+}
+
+const VIEWS = { grade: viewGrade, desk: viewDesk, calls: viewCalls, score: viewScore,
+                digests: viewDigests, texas: viewTexas, box: viewBox };
+
+let CURRENT = 'grade';
+function show(name) {
+  CURRENT = name;
+  hideTip();
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.view === name ? 'true' : 'false'));
+  $('view').innerHTML = '<p class="muted">Loading</p>';
+  VIEWS[name]().catch(e => { $('view').innerHTML = `<p class="badc">Could not load this: ${esc(e.message)}</p>`; });
+}
+document.querySelectorAll('.tab').forEach(b => { b.onclick = () => show(b.dataset.view); });
+
+loadStatus();
+show('grade');
+
+let VERSION = null;
+function busy() {
+  const a = document.activeElement;
+  return !!document.querySelector('.confirm') ||
+         (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) ||
+         !!(($('dtopic') || {}).value || ($('dtick') || {}).value || $('askbox') && $('askbox').children.length);
+}
+async function tick() {
+  if (document.hidden) return;
+  try {
+    const r = await fetch(q('/api/version'), { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const { v } = await r.json();
+    if (document.hidden) return;
+    if (VERSION === null) { VERSION = v; return; }
+    if (v !== VERSION) {
+      VERSION = v;
+      if (!busy()) { loadStatus(); VIEWS[CURRENT]().catch(() => {}); }
+    }
+    if ($('livedot').className !== 'live') $('livedot').className = 'live';
+  } catch (e) {
+    $('livedot').className = 'live off';
+  }
+}
+let LAST_TOUCH = Date.now();
+['click', 'keydown', 'touchstart', 'scroll', 'mousemove'].forEach(ev =>
+  document.addEventListener(ev, () => { LAST_TOUCH = Date.now(); }, { passive: true }));
+(function loop() {
+  tick().finally(() => setTimeout(loop, Date.now() - LAST_TOUCH < 120000 ? 2000 : 10000));
+})();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { VERSION = null; loadStatus(); } });
+</script>
+</body>
+</html>
